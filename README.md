@@ -1,4 +1,4 @@
-# Candle Pattern TradingView Examples
+# Quantitative Strategy Research & Backtesting Framework
 
 TradingView Pine Script examples and a dependency-free Python research runner for studying candle patterns and indicator strategies on daily OHLC history.
 
