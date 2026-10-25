@@ -1,0 +1,23 @@
+//@version=6
+indicator("Hammer with Candle-Range Threshold", overlay = true)
+
+string shapeGroup = "Hammer shape"
+float wickBodyRatio = input.float(2.0, "Lower wick / body minimum", minval = 1.0, step = 0.1, group = shapeGroup)
+float upperWickRatio = input.float(1.0, "Upper wick / body maximum", minval = 0.0, step = 0.1, group = shapeGroup)
+bool requireBullishClose = input.bool(false, "Require bullish candle", group = shapeGroup)
+float rangeFraction = input.float(0.333, "Threshold fraction down from high", minval = 0.0, maxval = 1.0, step = 0.001, group = "Candle-range filter")
+
+float body = math.abs(close - open)
+float effectiveBody = math.max(body, syminfo.mintick)
+float lowerWick = math.min(open, close) - low
+float upperWick = high - math.max(open, close)
+float bodyBottom = math.min(open, close)
+float threshold = high - (high - low) * rangeFraction
+
+bool hammerShape = lowerWick >= effectiveBody * wickBodyRatio and
+     upperWick <= effectiveBody * upperWickRatio
+bool candleColorMatches = not requireBullishClose or close > open
+bool hammer = hammerShape and candleColorMatches and bodyBottom >= threshold
+
+plotshape(hammer, title = "Hammer", text = "Hammer", style = shape.triangleup, location = location.belowbar, color = color.green, textcolor = color.white)
+alertcondition(hammer, title = "Hammer", message = "Hammer threshold condition on {{ticker}} ({{interval}})")

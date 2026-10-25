@@ -1,0 +1,30 @@
+//@version=6
+strategy("126-Session Momentum + 200-SMA Candidate", overlay = true, pyramiding = 0, default_qty_type = strategy.fixed, default_qty_value = 1)
+
+// Fixed one-unit example with no volatility sizing or protective bracket orders.
+
+int momentumLength = input.int(126, "Momentum lookback", minval = 2, group = "Signal")
+int trendLength = input.int(200, "Trend SMA", minval = 2, group = "Signal")
+
+float momentum = close / close[momentumLength] - 1.0
+float trendSma = ta.sma(close, trendLength)
+bool ready = not na(momentum) and not na(trendSma)
+int regime = ready and momentum > 0 and close > trendSma ? 1 : ready and momentum < 0 and close < trendSma ? -1 : 0
+bool longSignal = ready and barstate.isconfirmed and regime == 1 and nz(regime[1], 0) != 1
+bool shortSignal = ready and barstate.isconfirmed and regime == -1 and nz(regime[1], 0) != -1
+bool exitLong = ready and barstate.isconfirmed and regime == 0 and strategy.position_size > 0
+bool exitShort = ready and barstate.isconfirmed and regime == 0 and strategy.position_size < 0
+
+if longSignal
+    strategy.entry("Long", strategy.long)
+else if shortSignal
+    strategy.entry("Short", strategy.short)
+else if exitLong
+    strategy.close("Long", comment = "Momentum regime off")
+else if exitShort
+    strategy.close("Short", comment = "Momentum regime off")
+
+plot(trendSma, "200-session SMA", color = color.orange)
+plotshape(longSignal, "Long regime", shape.triangleup, location.belowbar, color.lime, size = size.tiny, text = "Long")
+plotshape(shortSignal, "Short regime", shape.triangledown, location.abovebar, color.red, size = size.tiny, text = "Short")
+bgcolor(regime == 1 ? color.new(color.green, 92) : regime == -1 ? color.new(color.red, 92) : na, title = "Momentum regime")

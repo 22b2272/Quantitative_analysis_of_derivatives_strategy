@@ -1,0 +1,25 @@
+{
+  "dataset": {
+    "provider": "Yahoo Finance public chart endpoint",
+    "symbol": "^NSEI",
+    "exchange_timezone": "Asia/Kolkata",
+    "interval": "1d",
+    "requested_start": "2010-01-01",
+    "requested_end": "2026-10-25",
+    "rows": 4128,
+    "sha256": "a1f6a5858bbbca849f8d5658520bccbba87bfa118a1536595af6bb958cbd0bfb",
+    "first_date": "2010-01-04",
+    "last_date": "2026-10-23",
+    "downloaded_at_utc": "2026-10-25T17:21:19.003338+00:00",
+    "price_series": "unadjusted index OHLC; no derivatives contract data"
+  },
+  "data_rows_used": 4128,
+  "first_date": "2010-01-04",
+  "last_date": "2026-10-23",
+  "train_fraction": 0.7,
+  "split_date": "2021-10-19",
+  "warmup_bars_excluded_from_metrics": 200,
+  "cost_bps_per_side": 5.0,
+  "execution": "close signal executes at next session open; daily OHLC stop/target; stop-first if both stop and target touched; simple percentage exposure, no contract multiplier or margin model",
+  "alpha_candidate": "126-session time-series momentum direction gated by 200-session SMA; 10% annualized realized-volatility target capped at 1.0x exposure; no parameter optimization"
+}

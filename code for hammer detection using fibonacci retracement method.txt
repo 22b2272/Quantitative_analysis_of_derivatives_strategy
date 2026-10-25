@@ -1,9 +1,0 @@
-//@version=5
-indicator('Hammer', overlay=true)
-fibLevel = input(title='Fib Level', defval=0.333)
-colorFilter = input(title='Color Must Match', defval=false)
-bullFib = (low - high) * fibLevel + high
-lowestBody = close < open ? close : open
-hammerCandle = lowestBody >= bullFib 
-plotshape(hammerCandle, style=shape.triangledown, location=location.belowbar, color=color.new(color.green, 0))
-alertcondition(hammerCandle or starCandle, title='Hammer', message='{{ticker}}')

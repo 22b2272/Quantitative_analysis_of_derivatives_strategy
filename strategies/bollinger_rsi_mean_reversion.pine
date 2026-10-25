@@ -1,0 +1,44 @@
+//@version=6
+strategy("Bollinger RSI Mean Reversion with ADX Regime Filter", overlay = true, pyramiding = 0)
+
+int bandLength = input.int(20, "Bollinger period", minval = 2, group = "Bollinger Bands")
+float bandDeviation = input.float(2.0, "Standard deviations", minval = 0.1, step = 0.1, group = "Bollinger Bands")
+int rsiLength = input.int(14, "RSI period", minval = 1, group = "Signal filters")
+float longRsiCeiling = input.float(45.0, "Long RSI ceiling", minval = 0, maxval = 100, group = "Signal filters")
+float shortRsiFloor = input.float(55.0, "Short RSI floor", minval = 0, maxval = 100, group = "Signal filters")
+int adxLength = input.int(14, "DMI / ADX period", minval = 1, group = "Signal filters")
+float maximumAdx = input.float(25.0, "Maximum ADX for entries", minval = 1, step = 0.5, group = "Signal filters")
+int atrLength = input.int(14, "ATR period", minval = 1, group = "Risk controls")
+float stopAtrMultiple = input.float(1.5, "Stop distance (ATR)", minval = 0.1, step = 0.1, group = "Risk controls")
+
+float basis = ta.sma(close, bandLength)
+float bandWidth = ta.stdev(close, bandLength) * bandDeviation
+float upperBand = basis + bandWidth
+float lowerBand = basis - bandWidth
+float rsi = ta.rsi(close, rsiLength)
+float atr = ta.atr(atrLength)
+[_, _, adx] = ta.dmi(adxLength, adxLength)
+bool crossedAboveLower = ta.crossover(close, lowerBand)
+bool crossedBelowUpper = ta.crossunder(close, upperBand)
+
+bool ready = not na(atr) and not na(rsi) and not na(adx) and not na(basis)
+bool rangeRegime = ready and adx < maximumAdx
+bool longSignal = rangeRegime and barstate.isconfirmed and strategy.position_size == 0 and close < basis and crossedAboveLower and rsi <= longRsiCeiling
+bool shortSignal = rangeRegime and barstate.isconfirmed and strategy.position_size == 0 and close > basis and crossedBelowUpper and rsi >= shortRsiFloor
+
+if longSignal
+    float stopPrice = close - atr * stopAtrMultiple
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long exit", from_entry = "Long", stop = stopPrice, limit = basis)
+
+if shortSignal
+    float stopPrice = close + atr * stopAtrMultiple
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short exit", from_entry = "Short", stop = stopPrice, limit = basis)
+
+plot(basis, "Bollinger basis", color = color.blue)
+upperPlot = plot(upperBand, "Upper band", color = color.gray)
+lowerPlot = plot(lowerBand, "Lower band", color = color.gray)
+fill(upperPlot, lowerPlot, color = color.new(color.blue, 92), title = "Band area")
+plotshape(longSignal, "Long signal", shape.triangleup, location.belowbar, color.lime, size = size.tiny)
+plotshape(shortSignal, "Short signal", shape.triangledown, location.abovebar, color.red, size = size.tiny)

@@ -1,0 +1,43 @@
+//@version=6
+strategy("EMA Crossover with RSI Confirmation and ATR Exits", overlay = true, pyramiding = 0)
+
+int fastLength = input.int(20, "Fast EMA", minval = 1, group = "Trend")
+int slowLength = input.int(50, "Slow EMA", minval = 2, group = "Trend")
+int rsiLength = input.int(14, "RSI period", minval = 1, group = "Momentum filter")
+float longRsiMinimum = input.float(50.0, "Long RSI minimum", minval = 0, maxval = 100, group = "Momentum filter")
+float shortRsiMaximum = input.float(50.0, "Short RSI maximum", minval = 0, maxval = 100, group = "Momentum filter")
+int atrLength = input.int(14, "ATR period", minval = 1, group = "Risk controls")
+float stopAtrMultiple = input.float(2.0, "Stop distance (ATR)", minval = 0.1, step = 0.1, group = "Risk controls")
+float rewardRisk = input.float(2.0, "Target (R multiple)", minval = 0.1, step = 0.1, group = "Risk controls")
+
+float fastEma = ta.ema(close, fastLength)
+float slowEma = ta.ema(close, slowLength)
+float rsi = ta.rsi(close, rsiLength)
+float atr = ta.atr(atrLength)
+bool crossedAbove = ta.crossover(fastEma, slowEma)
+bool crossedBelow = ta.crossunder(fastEma, slowEma)
+bool ready = fastLength < slowLength and not na(atr) and not na(rsi) and not na(slowEma)
+bool longSignal = ready and barstate.isconfirmed and crossedAbove and rsi >= longRsiMinimum
+bool shortSignal = ready and barstate.isconfirmed and crossedBelow and rsi <= shortRsiMaximum
+
+if barstate.isconfirmed and strategy.position_size > 0 and crossedBelow and not shortSignal
+    strategy.close("Long", comment = "Reverse EMA cross")
+if barstate.isconfirmed and strategy.position_size < 0 and crossedAbove and not longSignal
+    strategy.close("Short", comment = "Reverse EMA cross")
+
+if longSignal
+    float stopPrice = close - atr * stopAtrMultiple
+    float targetPrice = close + atr * stopAtrMultiple * rewardRisk
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long exit", from_entry = "Long", stop = stopPrice, limit = targetPrice)
+
+if shortSignal
+    float stopPrice = close + atr * stopAtrMultiple
+    float targetPrice = close - atr * stopAtrMultiple * rewardRisk
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short exit", from_entry = "Short", stop = stopPrice, limit = targetPrice)
+
+plot(fastEma, "Fast EMA", color = color.teal)
+plot(slowEma, "Slow EMA", color = color.orange)
+plotshape(longSignal, "Long signal", shape.triangleup, location.belowbar, color.lime, size = size.tiny)
+plotshape(shortSignal, "Short signal", shape.triangledown, location.abovebar, color.red, size = size.tiny)

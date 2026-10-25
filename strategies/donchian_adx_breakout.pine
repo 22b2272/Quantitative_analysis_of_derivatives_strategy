@@ -1,0 +1,36 @@
+//@version=6
+strategy("Donchian Breakout with DMI Trend Filter and ATR Exits", overlay = true, pyramiding = 0)
+
+int channelLength = input.int(20, "Donchian lookback", minval = 2, group = "Breakout")
+int dmiLength = input.int(14, "DMI / ADX period", minval = 1, group = "Trend filter")
+float minimumAdx = input.float(20.0, "Minimum ADX", minval = 1, step = 0.5, group = "Trend filter")
+int atrLength = input.int(14, "ATR period", minval = 1, group = "Risk controls")
+float stopAtrMultiple = input.float(2.0, "Stop distance (ATR)", minval = 0.1, step = 0.1, group = "Risk controls")
+float rewardRisk = input.float(2.0, "Target (R multiple)", minval = 0.1, step = 0.1, group = "Risk controls")
+
+// Exclude the current bar so its breakout is compared with prior channel levels.
+float priorUpper = ta.highest(high, channelLength)[1]
+float priorLower = ta.lowest(low, channelLength)[1]
+[plusDi, minusDi, adx] = ta.dmi(dmiLength, dmiLength)
+float atr = ta.atr(atrLength)
+
+bool ready = not na(priorUpper) and not na(priorLower) and not na(adx) and not na(atr)
+bool longSignal = ready and barstate.isconfirmed and strategy.position_size == 0 and close > priorUpper and adx >= minimumAdx and plusDi > minusDi
+bool shortSignal = ready and barstate.isconfirmed and strategy.position_size == 0 and close < priorLower and adx >= minimumAdx and minusDi > plusDi
+
+if longSignal
+    float stopPrice = close - atr * stopAtrMultiple
+    float targetPrice = close + atr * stopAtrMultiple * rewardRisk
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long exit", from_entry = "Long", stop = stopPrice, limit = targetPrice)
+
+if shortSignal
+    float stopPrice = close + atr * stopAtrMultiple
+    float targetPrice = close - atr * stopAtrMultiple * rewardRisk
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short exit", from_entry = "Short", stop = stopPrice, limit = targetPrice)
+
+plot(priorUpper, "Prior Donchian high", color = color.teal)
+plot(priorLower, "Prior Donchian low", color = color.orange)
+plotshape(longSignal, "Long breakout", shape.triangleup, location.belowbar, color.lime, size = size.tiny)
+plotshape(shortSignal, "Short breakout", shape.triangledown, location.abovebar, color.red, size = size.tiny)

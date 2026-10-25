@@ -1,0 +1,60 @@
+//@version=6
+strategy(
+     "Hammer Pullback with SMA Filter and ATR Exits",
+     overlay = true,
+     pyramiding = 0
+)
+
+// This example works on the chart's OHLC series. Configure instrument-specific
+// commission, slippage, margin, and order size in Strategy Properties.
+
+string patternGroup = "Candle patterns"
+int bodyLength = input.int(25, "SMA period", minval = 1, group = "Trend filter")
+float wickBodyRatio = input.float(2.0, "Long wick / body minimum", minval = 1.0, step = 0.1, group = patternGroup)
+float oppositeWickRatio = input.float(1.0, "Opposite wick / body maximum", minval = 0.0, step = 0.1, group = patternGroup)
+bool enableLongs = input.bool(true, "Enable long trades", group = "Trade direction")
+bool enableShorts = input.bool(true, "Enable short trades", group = "Trade direction")
+int atrLength = input.int(14, "ATR period", minval = 1, group = "Risk controls")
+float stopAtrBuffer = input.float(0.25, "Stop buffer (ATR)", minval = 0.0, step = 0.05, group = "Risk controls")
+float rewardRisk = input.float(2.0, "Target (R multiple)", minval = 0.1, step = 0.1, group = "Risk controls")
+
+float candleBody = math.abs(close - open)
+float minimumBody = syminfo.mintick
+float effectiveBody = math.max(candleBody, minimumBody)
+float lowerWick = math.min(open, close) - low
+float upperWick = high - math.max(open, close)
+
+bool bullishHammer = close > open and
+     lowerWick >= effectiveBody * wickBodyRatio and
+     upperWick <= effectiveBody * oppositeWickRatio
+bool bearishShootingStar = close < open and
+     upperWick >= effectiveBody * wickBodyRatio and
+     lowerWick <= effectiveBody * oppositeWickRatio
+
+float trendSma = ta.sma(close, bodyLength)
+float atr = ta.atr(atrLength)
+bool trendUp = close > trendSma
+bool trendDown = close < trendSma
+bool canEnter = strategy.position_size == 0 and barstate.isconfirmed and not na(atr)
+bool longSignal = enableLongs and canEnter and bullishHammer and trendUp
+bool shortSignal = enableShorts and canEnter and bearishShootingStar and trendDown
+
+if longSignal
+    float stopPrice = low - atr * stopAtrBuffer
+    float riskPerUnit = close - stopPrice
+    if riskPerUnit > 0
+        float targetPrice = close + riskPerUnit * rewardRisk
+        strategy.entry("Long", strategy.long)
+        strategy.exit("Long exit", from_entry = "Long", stop = stopPrice, limit = targetPrice)
+
+if shortSignal
+    float stopPrice = high + atr * stopAtrBuffer
+    float riskPerUnit = stopPrice - close
+    if riskPerUnit > 0
+        float targetPrice = close - riskPerUnit * rewardRisk
+        strategy.entry("Short", strategy.short)
+        strategy.exit("Short exit", from_entry = "Short", stop = stopPrice, limit = targetPrice)
+
+plot(trendSma, "Trend SMA", color = color.blue)
+plotshape(longSignal, title = "Bullish hammer long signal", text = "Hammer", style = shape.triangleup, location = location.belowbar, color = color.lime, textcolor = color.black)
+plotshape(shortSignal, title = "Bearish shooting star short signal", text = "Star", style = shape.triangledown, location = location.abovebar, color = color.red, textcolor = color.white)
